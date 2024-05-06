@@ -9,15 +9,39 @@ import SwiftUI
 
 struct TimerView: View {
     var stopWatch: StopWatch
-    @State private var countUpDuration = "---"
-    @State private var countDownDuration = "---"
+    @State private var duration = "---"
     @State private var timeStarted = Date()
     private var timeEnd: Date {return timeStarted.addingTimeInterval(stopWatch.length)}
-    @State private var timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
-    @State private var isTimerRunning = false
+    @State private var timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
     @Binding var scrollID: StopWatch.ID?
     @Binding var stopWatchCompleted: Bool
+    
+    private func updateDuration(_ time: Date) {
+        if stopWatch.isCountUp {
+            duration = secondFormatter(timeInterval: time.timeIntervalSince(timeStarted))
+        }
+        else {
+            duration = secondFormatter(timeInterval: timeEnd.timeIntervalSince(time))
+        }
+    }
+    
+    private func secondFormatter(timeInterval: Double) -> String {
+        let seconds = Int(timeInterval.rounded())
+        let (h,m,s) = (seconds / 3600, (seconds % 3600) / 60, (seconds % 3600) % 60)
+        return "\(String(format: "%02d",h)):\(String(format: "%02d",m)):\(String(format: "%02d",s))"
+    }
+    
+    private func startTimer(){
+        timeStarted = Date()
+        timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+        updateDuration(timeStarted)
+        stopWatchCompleted = false
+    }
+    
+    private func stopTimer(){
+        timer.upstream.connect().cancel()
+    }
     
     var body: some View {
         HStack {
@@ -27,12 +51,8 @@ struct TimerView: View {
                 Text("\(stopWatch.name)")
                 Text("own ID: \(stopWatch.id)")
                 Text("scroll ID: \(scrollID ?? UUID())")
-                Text("\(countUpDuration)")
-                    .font(Font.custom("Quicksand", size: 40))
-                    .padding()
-                Text("\(countDownDuration)")
-                    .font(Font.custom("Quicksand", size: 20))
-                    .foregroundStyle(.white)
+                Text("\(duration)")
+                    .font(Font.custom("Quicksand", size: 60))
                     .padding()
                 Spacer()
             }
@@ -41,47 +61,28 @@ struct TimerView: View {
         .containerRelativeFrame(.vertical)
         .background(Color.teal)
         .onReceive(timer){ time in
-            if isTimerRunning {
-                if time >= timeEnd {
-                    stopWatchCompleted = true
-                    stopTimer()
-                    return
-                }
-                countUpDuration = secondFormatter(timeInterval: time.timeIntervalSince(timeStarted))
-                countDownDuration = secondFormatter(timeInterval: timeEnd.timeIntervalSince(time))
+            if scrollID != stopWatch.id{
+                stopTimer()
+                return
             }
-            
+            updateDuration(time)
+            if time >= timeEnd {
+//                print("\(stopWatch.name):completed")
+                stopWatchCompleted = true
+                stopTimer()
+                return
+            }
         }
         .onChange(of: scrollID) { oldValue, newValue in
             if newValue == stopWatch.id{
                 startTimer()
             } else {
-                if isTimerRunning{
-                    stopTimer()
-                }
+                stopTimer()
             }
         }
-    }
-    
-    private func secondFormatter(timeInterval: Double) -> String {
-        let seconds = Int(timeInterval)
-        let (h,m,s) = (seconds / 3600, (seconds % 3600) / 60, (seconds % 3600) % 60)
-        return "\(String(format: "%02d",h)):\(String(format: "%02d",m)):\(String(format: "%02d",s))"
-    }
-    
-    private func startTimer(){
-        timeStarted = Date()
-        timer = Timer.publish(every: 0.5, on: .main, in: .common).autoconnect()
-        isTimerRunning = true
-    }
-    private func stopTimer(){
-        timer.upstream.connect().cancel()
-        countUpDuration = "---"
-        countDownDuration = "---"
-        isTimerRunning = false
     }
 }
 
 #Preview {
-    TimerView(stopWatch: StopWatch(name: "One", length:10.0), scrollID: .constant(UUID()), stopWatchCompleted: .constant(false))
+    TimerView(stopWatch: StopWatch(time: "One", length:10.0), scrollID: .constant(UUID()), stopWatchCompleted: .constant(false))
 }

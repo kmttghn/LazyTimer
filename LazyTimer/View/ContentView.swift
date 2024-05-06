@@ -10,16 +10,16 @@ import SwiftUI
 struct ContentView: View {
     
     @State var stopWatches: [StopWatch] = [
-        StopWatch(name: "One", length:5.0),
-        StopWatch(name: "Two", length:10.0),
-        StopWatch(name: "Three", length:20.0),
+        StopWatch(time: "One- time", length:3.0),
+        StopWatch(rep: "Two - rep", length:5.0),
+        StopWatch(break: "Three - break", length:8.0),
+        StopWatch(break: "Four - break", length:10.0)
     ]
     
     @State private var scrollID: StopWatch.ID?
     @State private var stopWatchCompleted: Bool = false
     
     var body: some View {
-//        Text("\(scrollID ?? UUID())")
         ScrollView(.vertical){
             LazyVStack{
                 ForEach(stopWatches){ stopWatch in
@@ -36,8 +36,12 @@ struct ContentView: View {
         }
         .onChange(of: stopWatchCompleted) { oldValue, newValue in
             if newValue {
-                scrollToNextID()
-                stopWatchCompleted = false
+                guard let id = scrollID,
+                      let index = stopWatches.firstIndex(where: { $0.id == id })
+                else { return }
+                if stopWatches[index].isAutoNext {
+                    scrollToNextID()
+                }
             }
         }
     }
@@ -56,7 +60,34 @@ struct ContentView: View {
 struct StopWatch: Identifiable {
     let id = UUID()
     var name: String
-    var length = 0.0
+    var length: Double
+    var isCountUp: Bool
+    var isAutoNext: Bool
+    var prepTime: Double
+    
+    init(rep name: String, length: Double){
+        self.name = name
+        self.length = length
+        isCountUp = true
+        isAutoNext = false
+        prepTime = 0.0
+    }
+    
+    init(time name: String, length: Double){
+        self.name = name
+        self.length = length
+        isCountUp = false
+        isAutoNext = true
+        prepTime = 3.0
+    }
+    
+    init(break name: String, length: Double){
+        self.name = name
+        self.length = length
+        isCountUp = false
+        isAutoNext = true
+        prepTime = 0.0
+    }
 }
 
 #Preview {
